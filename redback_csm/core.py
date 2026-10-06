@@ -35,6 +35,7 @@ def _get_csm():
 
 
 import numpy as np
+from scipy.integrate import trapezoid
 from collections import namedtuple
 from scipy.interpolate import PchipInterpolator, interp1d
 import matplotlib.pyplot as plt
@@ -4950,7 +4951,7 @@ class SequentialCSMModel:
         wind_density_physical[wind_mask] = wind_density[wind_mask]
 
         # Verify mass conservation
-        actual_wind_mass_cgs = np.trapz(
+        actual_wind_mass_cgs = trapezoid(
             wind_density_physical * 4 * np.pi * self.r_grid**2, self.r_grid
         )
         actual_wind_mass_msun = actual_wind_mass_cgs / solar_mass
@@ -5204,7 +5205,7 @@ class SequentialCSMModel:
 
         # Integrate mass: M = ∫ ρ(r) * 4πr² dr
         integrand = density_region * 4 * np.pi * r_region**2
-        swept_mass = np.trapz(integrand, r_region)
+        swept_mass = trapezoid(integrand, r_region)
 
         return swept_mass
 
@@ -5235,7 +5236,7 @@ class SequentialCSMModel:
         gaussian_profile = np.exp(-(((self.r_grid - r_sh) / sigma) ** 2))
 
         # Normalize to conserve mass
-        gaussian_mass_integral = np.trapz(
+        gaussian_mass_integral = trapezoid(
             gaussian_profile * 4 * np.pi * self.r_grid**2, self.r_grid
         )
 
@@ -5311,7 +5312,7 @@ class SequentialCSMModel:
             self._print(f"  Break velocity v*: {char_velocity / 1e5:.0f} km/s")
 
         # Verify mass conservation
-        calculated_mass_cgs = np.trapz(
+        calculated_mass_cgs = trapezoid(
             explosion_density * 4 * np.pi * self.r_grid**2, self.r_grid
         )
         calculated_mass_msun = calculated_mass_cgs / solar_mass
@@ -5477,7 +5478,7 @@ class SequentialCSMModel:
             raise ValueError("No eruptions added to model")
 
         # Calculate final mass conservation
-        final_csm_mass_cgs = np.trapz(
+        final_csm_mass_cgs = trapezoid(
             self.current_csm_density * 4 * np.pi * self.r_grid**2, self.r_grid
         )
         final_csm_mass_msun = final_csm_mass_cgs / solar_mass
