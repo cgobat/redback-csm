@@ -956,6 +956,10 @@ end subroutine lightcurve_wind_bpl
 
 ! Adaptively adjust time stepping so that shell changes are resolved to ~1%
    if(run_mode == 3)then
+    ! Match endpoint roundoff and the transport substep tolerance in zeta.
+    ! A smaller final step can leave the transport time unchanged forever.
+    if (t_end_run - t <= max(16d0*spacing(t_end_run), 1d-15*dl_state_global%t_in)) exit
+
     ! Use adaptive global cadence for output/driver stepping.
     ! The transport solver subcycles internally, but if this outer step is too
     ! coarse (e.g. fixed 1 day) fast dark-phase/rise features are lost by
