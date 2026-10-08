@@ -268,6 +268,22 @@ def test_radio_wrapper_accepts_per_point_frequency_array():
     _assert_lightcurve(radio, time.size)
 
 
+def test_radio_per_point_frequency_with_repeated_times():
+    kwargs = dict(
+        redshift=0.02, logepsb=-2.0, logepse=-1.0, p=3.0,
+        mdot=1.0e-3, vwind=100.0, delta=0.5, nn=10.0, mexp=5.0, eexp=1.0, eff=0.5,
+    )
+    frequency = np.array([3.0e9, 10.0e9, 100.0e9])
+    per_point = wind_bpl_radio(time=np.full(3, 50.0), frequency=frequency, **kwargs)
+    scalar = [
+        wind_bpl_radio(time=np.array([50.0]), frequency=nu, **kwargs)[0]
+        for nu in frequency
+    ]
+
+    np.testing.assert_allclose(per_point, scalar, rtol=1e-10)
+    assert np.unique(per_point).size == frequency.size
+
+
 @pytest.mark.skipif(importlib.util.find_spec("jax") is None, reason="jax is not installed")
 def test_jax_static_powerlaw_smoke():
     from jax_csm.model import get_static_powerlaw_csm_bpl_lightcurve

@@ -43,7 +43,7 @@ def synchrotron_flux_density(
     time_days : array_like
         Observer-frame time in days.
     vshell_cgs : array_like
-        Shock velocity in cm/s (from lc.vshell).
+        Shock velocity relative to the upstream CSM in cm/s.
     rho_csm_cgs : array_like
         Upstream CSM mass density at the shock in g/cm^3.
     radius_cgs : array_like, optional

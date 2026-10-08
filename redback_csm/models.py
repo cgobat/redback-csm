@@ -1737,18 +1737,20 @@ def generic_8shell_csm_bpl_bolometric(
 
 def _csm_radio_impl(time, redshift, csm_model, csm_kwargs):
     """
-    Interpolate synchrotron radio flux density (mJy) onto the requested
-    observer-frame time array.
+    Synchrotron radio flux density (mJy) on the requested observer-frame
+    time array.
 
-    The Fortran runs on its own internal time grid; we interpolate the result
-    onto the caller's time array, returning zero outside the grid.
+    ``_call_csm_radio`` already interpolates the shock quantities onto
+    ``time`` (zero outside the Fortran grid), so the flux is returned
+    point-by-point. Re-interpolating here would collapse repeated times
+    observed at different frequencies onto a single value.
     """
     dl = _cosmo.luminosity_distance(redshift).cgs.value
     logepsb   = csm_kwargs.pop('logepsb')
     logepse   = csm_kwargs.pop('logepse')
     p         = csm_kwargs.pop('p')
     frequency = csm_kwargs.pop('frequency')
-    t_grid, flux_grid = _call_csm_radio(
+    _, flux_grid = _call_csm_radio(
         csm_model,
         redshift=redshift,
         logepsb=logepsb,
@@ -1759,7 +1761,7 @@ def _csm_radio_impl(time, redshift, csm_model, csm_kwargs):
         time_days=time,
         **csm_kwargs,
     )
-    return _interp1d(t_grid, flux_grid, bounds_error=False, fill_value=0.0)(time)
+    return _np.asarray(flux_grid, dtype=float)
 
 
 def _pop_xray_kwarg(kwargs, *names, default=None):
