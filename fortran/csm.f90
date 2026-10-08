@@ -1105,7 +1105,9 @@ end subroutine lightcurve_wind_bpl
   if(allocated(tleakarray))deallocate(tleakarray)
   if(allocated(tauarray_transport))deallocate(tauarray_transport)
   allocate(tarray(n))
-  allocate(larray,temparray,rarray,varray,marray,ldiff,lfs,lrs,rfsarray,rpharray,etraparray,tleakarray,tauarray_transport,mold=tarray)
+  allocate(larray, temparray, rarray, varray, marray, ldiff, lfs, lrs, &
+           rfsarray, rpharray, etraparray, tleakarray, tauarray_transport, &
+           mold=tarray)
 
   tarray(1:n) = t_array(1:n)
   larray(1:n) = l_array(1:n)
