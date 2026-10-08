@@ -160,9 +160,25 @@ take additional parameters:
 | `logepsb` | log₁₀(ε_B), magnetic energy fraction of shock ram pressure |
 | `logepse` | log₁₀(ε_e), electron energy fraction |
 | `p` | Electron power-law index (typically 2–4) |
-| `frequency` | Observing frequency in Hz |
+| `frequency` | Observing frequency in Hz: a scalar, or one value per `time` point |
 
-Output is flux density in mJy.
+Output is flux density in mJy. For multi-frequency data, pass `time` and
+`frequency` as matching per-point arrays (repeated times are fine): one call
+then evaluates every data point with a single hydro run. See
+`examples/20_multifrequency_radio_fit.py`.
+
+The shock velocity used is relative to the upstream CSM, and for homologously
+expanding CSM (`generic_*`, `homologous_powerlaw_*`) the upstream density
+follows the same expansion as the hydro.
+
+Optional spectral-shape keywords (all off by default):
+
+| Parameter | Description |
+|---|---|
+| `cooling`, `log_nu_c_scale` | Synchrotron cooling break: thin spectrum steepens by 1/2 above `nu_c` (computed from B and t), scaled by `10**log_nu_c_scale` |
+| `ssa_alpha_thick` | Optically thick spectral index (default 5/2); lower values mimic an inhomogeneous absorber |
+| `ssa_smoothing` | Smooth join of the thick and thin asymptotes, `(F_thick^-s + F_thin^-s)^(-1/s)`; default is a sharp break |
+| `log_tau_ff`, `ff_time_index`, `ff_nu_ref_ghz`, `ff_t_ref_days` | External free-free absorption `exp(-tau)`, `tau = 10**log_tau_ff (nu/nu_ref)^-2.1 (t/t_ref)^-ff_time_index` |
 
 ### X-ray thermal bremsstrahlung model variants
 

@@ -6821,7 +6821,8 @@ def _rho_csm_snapshot_at_r(csm_model, r_sh, lc, **kwargs):
 
 
 def _call_csm_radio(csm_model, redshift, logepsb, logepse, p, frequency,
-                    luminosity_distance_cm, time_days=None, **kwargs):
+                    luminosity_distance_cm, time_days=None, radio_options=None,
+                    **kwargs):
     """
     Run the CSM Fortran model, compute the upstream density at the shock, and
     return synchrotron flux density in mJy on the Fortran time grid.
@@ -6839,6 +6840,9 @@ def _call_csm_radio(csm_model, redshift, logepsb, logepse, p, frequency,
     frequency : float or array
         Observer-frame frequency in Hz
     luminosity_distance_cm : float
+    radio_options : dict, optional
+        Spectral-shape keywords forwarded to ``synchrotron_flux_density``
+        (see ``redback_csm.radio.RADIO_SPECTRAL_OPTIONS``).
     **kwargs
         All physical parameters for the CSM model (passed through to _call_csm
         and also used by the density evaluators).
@@ -6888,6 +6892,7 @@ def _call_csm_radio(csm_model, redshift, logepsb, logepse, p, frequency,
         frequency=frequency,
         luminosity_distance_cm=luminosity_distance_cm,
         radius_cgs=radius,
+        **(radio_options or {}),
     )
     return t_eval_obs, flux_mJy
 

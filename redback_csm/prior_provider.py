@@ -58,6 +58,11 @@ def _latex_label(name):
         "logepse": "$\\log_{10}\\epsilon_e$",
         "logepsx": "$\\log_{10}\\epsilon_X$",
         "p": "$p$",
+        "log_nu_c_scale": "$\\log_{10} f_{\\nu_c}$",
+        "ssa_alpha_thick": "$\\alpha_{\\mathrm{thick}}$",
+        "ssa_smoothing": "$s_{\\mathrm{SSA}}$",
+        "log_tau_ff": "$\\log_{10}\\tau_{\\mathrm{ff}}$",
+        "ff_time_index": "$\\delta_{\\mathrm{ff}}$",
         "base_density": "$\\rho_{\\mathrm{base}}$",
         "base_index": "$s$",
         "eta": "$\\eta$",
@@ -138,6 +143,16 @@ def _prior_for_parameter(name):
         return _uniform(name, -4.0, 0.0, label)
     if name == "p":
         return _uniform(name, 2.0, 4.0, label)
+    if name == "log_nu_c_scale":
+        return _uniform(name, -3.0, 3.0, label)
+    if name == "ssa_alpha_thick":
+        return _uniform(name, 0.0, 2.5, label)
+    if name == "ssa_smoothing":
+        return _loguniform(name, 0.3, 30.0, label)
+    if name == "log_tau_ff":
+        return _uniform(name, -4.0, 4.0, label)
+    if name == "ff_time_index":
+        return _uniform(name, 0.0, 4.0, label)
     if name in {"base_density"} or re.match(r"shell\d+_density$", name):
         return _loguniform(name, 1e-20, 1e-12, label)
     if name in {"base_index", "eta"}:

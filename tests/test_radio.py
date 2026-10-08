@@ -1,6 +1,116 @@
 import numpy as np
 
 from redback_csm.models import static_spline_csm_bpl_radio
+from redback_csm.radio import synchrotron_flux_density
+
+
+def _shock_inputs(n=200):
+    time = np.geomspace(5.0, 3000.0, n)
+    vshell = np.full(n, 1.0e9)
+    return dict(
+        time_days=time,
+        vshell_cgs=vshell,
+        rho_csm_cgs=1.0e-20 * (time / 100.0) ** -2,
+        redshift=0.004,
+        logepsb=-1.5,
+        logepse=-1.0,
+        p=2.6,
+        luminosity_distance_cm=3.0e25,
+        radius_cgs=vshell * time * 86400.0,
+    )
+
+
+def _local_index(fn, nu, **kwargs):
+    lo = fn(frequency=nu / 1.05, **kwargs)
+    hi = fn(frequency=nu * 1.05, **kwargs)
+    return np.log(hi / lo) / np.log(1.05**2)
+
+
+def test_explicit_defaults_match_default_spectrum():
+    kwargs = _shock_inputs()
+    nu = np.geomspace(1.0e8, 3.0e11, kwargs["time_days"].size)
+    base = synchrotron_flux_density(frequency=nu, **kwargs)
+    explicit = synchrotron_flux_density(
+        frequency=nu, cooling=False, ssa_alpha_thick=2.5, ssa_smoothing=None,
+        log_tau_ff=None, **kwargs,
+    )
+    np.testing.assert_array_equal(base, explicit)
+
+
+def test_cooling_factor_matches_analytic_break():
+    kwargs = _shock_inputs()
+    nu = np.full(kwargs["time_days"].size, 1.0e11)
+    base = synchrotron_flux_density(frequency=nu, **kwargs)
+    cooled = synchrotron_flux_density(frequency=nu, cooling=True, log_nu_c_scale=-0.5, **kwargs)
+
+    b_field = np.sqrt(8.0 * np.pi * 10**kwargs["logepsb"] * kwargs["rho_csm_cgs"]
+                      * kwargs["vshell_cgs"] ** 2)
+    t_src_s = kwargs["time_days"] / 1.004 * 86400.0
+    nu_c = (18.0 * np.pi * 9.109e-28 * 2.998e10 * 4.803e-10
+            / (6.6524e-25**2 * b_field**3 * t_src_s**2)) * 10**-0.5
+    expected = base * (1.0 + nu * 1.004 / nu_c) ** -0.5
+    np.testing.assert_allclose(cooled, expected, rtol=1e-10)  # 100 GHz is optically thin here
+
+
+def test_cooling_steepens_thin_slope_by_half_far_above_break():
+    kwargs = _shock_inputs()
+    kwargs["time_days"] = kwargs["time_days"][:20]  # early, high-B epochs
+    for key in ("vshell_cgs", "rho_csm_cgs", "radius_cgs"):
+        kwargs[key] = kwargs[key][:20]
+    index = _local_index(
+        synchrotron_flux_density, 1.0e13, cooling=True, log_nu_c_scale=-3.0, **kwargs
+    )
+    np.testing.assert_allclose(index, -kwargs["p"] / 2.0, atol=1e-3)
+
+
+def test_large_smoothing_recovers_sharp_break():
+    kwargs = _shock_inputs()
+    nu = np.geomspace(1.0e8, 3.0e11, kwargs["time_days"].size)
+    sharp = synchrotron_flux_density(frequency=nu, **kwargs)
+    smooth = synchrotron_flux_density(frequency=nu, ssa_smoothing=1.0e4, **kwargs)
+    np.testing.assert_allclose(smooth, sharp, rtol=1e-3)
+
+
+def test_free_free_absorption_factor():
+    kwargs = _shock_inputs()
+    nu = np.full(kwargs["time_days"].size, 5.0e9)
+    base = synchrotron_flux_density(frequency=nu, **kwargs)
+    absorbed = synchrotron_flux_density(
+        frequency=nu, log_tau_ff=0.0, ff_nu_ref_ghz=5.0 * 1.004,
+        ff_t_ref_days=100.0 / 1.004, ff_time_index=1.0, **kwargs,
+    )
+    t_src = kwargs["time_days"] / 1.004
+    expected = base * np.exp(-(t_src / (100.0 / 1.004)) ** -1.0)
+    np.testing.assert_allclose(absorbed, expected, rtol=1e-12)
+
+
+def test_spectral_options_reach_model_wrapper():
+    kwargs = dict(
+        redshift=0.004, log_r_inner=14.0, log_r_outer=17.7,
+        delta_sn=1.0, nn_sn=10.0, mej_sn=3.0, esn=1.0, eff=0.5,
+        logepsb=-1.5, logepse=-1.0, p=2.6,
+        **{f"log_rho_{i}": -17.0 - 0.6 * i for i in range(8)},
+    )
+    time = np.array([20.0, 20.0, 500.0, 500.0])
+    frequency = np.array([5.0e9, 1.0e11, 5.0e9, 1.0e11])
+    base = static_spline_csm_bpl_radio(time=time, frequency=frequency, **kwargs)
+    cooled = static_spline_csm_bpl_radio(
+        time=time, frequency=frequency, cooling=True, **kwargs
+    )
+    assert np.all(base > 0)
+    assert np.all(cooled <= base)
+    assert np.any(cooled < 0.99 * base)
+
+
+def test_cooling_keeps_sharp_ssa_break_continuous():
+    kwargs = _shock_inputs(n=1)
+    kwargs["time_days"] = np.full(4000, 20.0)
+    for key in ("vshell_cgs", "rho_csm_cgs", "radius_cgs"):
+        kwargs[key] = np.full(4000, kwargs[key][0])
+    nu = np.geomspace(1.0e8, 1.0e12, 4000)
+    flux = synchrotron_flux_density(frequency=nu, cooling=True, log_nu_c_scale=-4.0, **kwargs)
+    # adjacent grid points differ by 0.1%; slopes are at most 2.5, so no step > 1%
+    assert np.max(np.abs(np.diff(np.log(flux)))) < 0.01
 
 
 _SPLINE_KWARGS = dict(

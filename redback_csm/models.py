@@ -49,6 +49,7 @@ from redback_csm.core import (
     create_generic_spline_csm_density as _create_generic_spline_csm_density,
     pspline_log_rho_nodes as _pspline_log_rho_nodes,
 )
+from redback_csm.radio import RADIO_SPECTRAL_OPTIONS as _RADIO_SPECTRAL_OPTIONS
 
 DAY = 86400.0    # seconds per day
 _AU = 1.496e13   # cm per AU
@@ -1750,6 +1751,9 @@ def _csm_radio_impl(time, redshift, csm_model, csm_kwargs):
     logepse   = csm_kwargs.pop('logepse')
     p         = csm_kwargs.pop('p')
     frequency = csm_kwargs.pop('frequency')
+    radio_options = {
+        key: csm_kwargs.pop(key) for key in _RADIO_SPECTRAL_OPTIONS if key in csm_kwargs
+    }
     _, flux_grid = _call_csm_radio(
         csm_model,
         redshift=redshift,
@@ -1759,6 +1763,7 @@ def _csm_radio_impl(time, redshift, csm_model, csm_kwargs):
         frequency=frequency,
         luminosity_distance_cm=dl,
         time_days=time,
+        radio_options=radio_options,
         **csm_kwargs,
     )
     return _np.asarray(flux_grid, dtype=float)

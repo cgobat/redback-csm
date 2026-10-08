@@ -110,7 +110,31 @@ interaction shock using the explicit shock radius ``rshock``, the shock
 velocity, and the upstream CSM density. The X-ray wrappers compute an
 approximate thermal bremsstrahlung diagnostic using the same shock trajectory
 and upstream CSM density. The X-ray calculation is a fast post-processor, not a
-resolved cooling layer or spectral-fitting model.
+resolved cooling layer or spectral-fitting model. Both use the shock velocity
+relative to the upstream CSM, and for homologously expanding CSM
+(``generic_*``, ``homologous_powerlaw_*``) the upstream density follows the
+same expansion as the hydro.
+
+Radio wrappers take ``logepsb``, ``logepse``, ``p`` and ``frequency``. The
+frequency may be a scalar or one value per ``time`` point (repeated times are
+allowed), so multi-frequency data can be evaluated in a single call. Optional
+spectral-shape keywords, all off by default:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Keyword
+     - Description
+   * - ``cooling``, ``log_nu_c_scale``
+     - Synchrotron cooling break; the thin spectrum steepens by 1/2 above
+       ``nu_c`` (from B and t), scaled by ``10**log_nu_c_scale``
+   * - ``ssa_alpha_thick``
+     - Optically thick spectral index (default 5/2)
+   * - ``ssa_smoothing``
+     - Smooth join of the thick and thin asymptotes; default is a sharp break
+   * - ``log_tau_ff``, ``ff_time_index``, ``ff_nu_ref_ghz``, ``ff_t_ref_days``
+     - External free-free absorption,
+       ``tau = 10**log_tau_ff (nu/nu_ref)^-2.1 (t/t_ref)^-ff_time_index``
 
 Common X-ray controls include ``logepsx``, ``e_min_kev``, ``e_max_kev``,
 ``output_format``, ``n_h_host``, ``n_h_mw``, ``absorb_csm``,
