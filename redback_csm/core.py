@@ -656,7 +656,7 @@ def _get_lc_exponential_wind(mexp, eexp, mdot, vwind, eff, **kwargs):
         plt.plot(lc.time, lc.lbol_shock)   # Plots shock luminosity
         plt.plot(lc.time, lc.lbol_diffuse) # Same as lc.lbol when kappa provided
     """
-    _mode, kappa = _configure_runtime_from_kwargs(kwargs)
+    mode, kappa = _configure_runtime_from_kwargs(kwargs)
 
     mdot = mdot * solar_mass_per_yr_to_gram_per_sec
     vwind = vwind * 1e5  # Convert km/s to cm/s
@@ -2143,6 +2143,27 @@ def _get_lc_bpl_triple_powerlaw_wind(
     return _freeze_output(outs)
 
 
+def _smooth_triple_powerlaw_mdot(tgrid_yr, mdot_0, t_break1, t_break2, alpha1, alpha2,
+                                 alpha3, smooth_factor=0.2):
+    """Smooth (tanh-joined) triple power-law mass-loss rate on tgrid_yr, in the
+    units of mdot_0.  Shared by the hydro set-up and the radio/X-ray lookup."""
+    mdot_1 = mdot_0 * (tgrid_yr / 1.0) ** alpha1
+    mdot_break1 = mdot_0 * (t_break1 / 1.0) ** alpha1
+    mdot_2 = mdot_break1 * (tgrid_yr / t_break1) ** alpha2
+    mdot_break2 = mdot_break1 * (t_break2 / t_break1) ** alpha2
+    mdot_3 = mdot_break2 * (tgrid_yr / t_break2) ** alpha3
+    # Smooth transition widths (in log space for better scaling)
+    smooth_width1 = smooth_factor * np.log10(t_break1) if t_break1 > 1 else smooth_factor
+    smooth_width2 = smooth_factor * np.log10(t_break2) if t_break2 > 1 else smooth_factor
+    transition1 = 0.5 * (1 + np.tanh((np.log10(tgrid_yr) - np.log10(t_break1)) / smooth_width1))
+    transition2 = 0.5 * (1 + np.tanh((np.log10(tgrid_yr) - np.log10(t_break2)) / smooth_width2))
+    return (
+        (1 - transition1) * mdot_1
+        + transition1 * (1 - transition2) * mdot_2
+        + transition2 * mdot_3
+    )
+
+
 def _get_lc_smooth_triple_powerlaw_wind_bpl(
     t_break1,
     t_break2,
@@ -2191,42 +2212,8 @@ def _get_lc_smooth_triple_powerlaw_wind_bpl(
     tgrid = np.logspace(np.log10(t_start), np.log10(t_end), n_points)
 
     # Create smooth triple power law mass loss profile using tanh transitions
-
-    # Calculate the three power law components
-    mdot_1 = mdot_0 * (tgrid / 1.0) ** alpha1
-
-    # Calculate normalization for continuity at t_break1
-    mdot_break1 = mdot_0 * (t_break1 / 1.0) ** alpha1
-    mdot_2 = mdot_break1 * (tgrid / t_break1) ** alpha2
-
-    # Calculate normalization for continuity at t_break2
-    mdot_break2 = mdot_break1 * (t_break2 / t_break1) ** alpha2
-    mdot_3 = mdot_break2 * (tgrid / t_break2) ** alpha3
-
-    # Smooth transition widths (in log space for better scaling)
-    smooth_width1 = (
-        smooth_factor * np.log10(t_break1) if t_break1 > 1 else smooth_factor
-    )
-    smooth_width2 = (
-        smooth_factor * np.log10(t_break2) if t_break2 > 1 else smooth_factor
-    )
-
-    # Create smooth transitions using tanh
-    # Transition 1: from regime 1 to regime 2
-    transition1 = 0.5 * (
-        1 + np.tanh((np.log10(tgrid) - np.log10(t_break1)) / smooth_width1)
-    )
-
-    # Transition 2: from regime 2 to regime 3
-    transition2 = 0.5 * (
-        1 + np.tanh((np.log10(tgrid) - np.log10(t_break2)) / smooth_width2)
-    )
-
-    # Combine the three regimes with smooth transitions
-    mdot = (
-        (1 - transition1) * mdot_1
-        + transition1 * (1 - transition2) * mdot_2
-        + transition2 * mdot_3
+    mdot = _smooth_triple_powerlaw_mdot(
+        tgrid, mdot_0, t_break1, t_break2, alpha1, alpha2, alpha3, smooth_factor
     )
 
     # Convert units
@@ -2321,42 +2308,8 @@ def _get_lc_smooth_triple_powerlaw_wind_exponential(
     tgrid = np.logspace(np.log10(t_start), np.log10(t_end), n_points)
 
     # Create smooth triple power law mass loss profile using tanh transitions
-
-    # Calculate the three power law components
-    mdot_1 = mdot_0 * (tgrid / 1.0) ** alpha1
-
-    # Calculate normalization for continuity at t_break1
-    mdot_break1 = mdot_0 * (t_break1 / 1.0) ** alpha1
-    mdot_2 = mdot_break1 * (tgrid / t_break1) ** alpha2
-
-    # Calculate normalization for continuity at t_break2
-    mdot_break2 = mdot_break1 * (t_break2 / t_break1) ** alpha2
-    mdot_3 = mdot_break2 * (tgrid / t_break2) ** alpha3
-
-    # Smooth transition widths (in log space for better scaling)
-    smooth_width1 = (
-        smooth_factor * np.log10(t_break1) if t_break1 > 1 else smooth_factor
-    )
-    smooth_width2 = (
-        smooth_factor * np.log10(t_break2) if t_break2 > 1 else smooth_factor
-    )
-
-    # Create smooth transitions using tanh
-    # Transition 1: from regime 1 to regime 2
-    transition1 = 0.5 * (
-        1 + np.tanh((np.log10(tgrid) - np.log10(t_break1)) / smooth_width1)
-    )
-
-    # Transition 2: from regime 2 to regime 3
-    transition2 = 0.5 * (
-        1 + np.tanh((np.log10(tgrid) - np.log10(t_break2)) / smooth_width2)
-    )
-
-    # Combine the three regimes with smooth transitions
-    mdot = (
-        (1 - transition1) * mdot_1
-        + transition1 * (1 - transition2) * mdot_2
-        + transition2 * mdot_3
+    mdot = _smooth_triple_powerlaw_mdot(
+        tgrid, mdot_0, t_break1, t_break2, alpha1, alpha2, alpha3, smooth_factor
     )
 
     # Convert units
@@ -3097,7 +3050,7 @@ def create_static_powerlaw_csm_density(
     Parameters
     ----------
     eta : float
-        Density slope in rho(r) \propto r^eta.
+        Density slope in rho(r) ~ r^eta.
     r_inner, r_outer : float
         Inner and outer shell radii in cm.
     m_csm : float
@@ -6438,11 +6391,11 @@ def _rho_variable_wind_at_r(model_name, r_array, lc, **kwargs):
     CSM density for variable-wind models (gausswind, boxwind, triple_powerlaw_wind).
 
     The density profile is rho = mdot(t_wind) / (4 pi r^2 vwind), but mdot is
-    a function of the wind emission time t_wind = r / vwind (i.e. the time the
-    wind parcel was emitted in order to be at radius r today).
+    a function of the wind emission time t_wind = |r / vwind - t| (i.e. how
+    long before the explosion the parcel at radius r at time t was emitted).
 
     We reconstruct the same mdot(t) array that was passed to the Fortran, then
-    evaluate it at t_wind = r / vwind for each shock radius.
+    evaluate it at t_wind for each shock radius.
     """
     vwind_cgs = kwargs['vwind'] * 1e5    # cm/s
     n_points  = kwargs.get('n_points', 50)
@@ -6467,9 +6420,17 @@ def _rho_variable_wind_at_r(model_name, r_array, lc, **kwargs):
         tgrid_yr = np.array([t1, t1, t2, t2])
         mdot_yr  = np.array([mdot_0, mdot_1, mdot_1, mdot_2])
 
-    elif model_name in ('triple_powerlaw_wind_bpl', 'triple_powerlaw_wind_exponential',
-                        'exponential_triple_powerlaw_wind', 'bpl_triple_powerlaw_wind',
-                        'smooth_triple_powerlaw_wind_bpl', 'smooth_triple_powerlaw_wind_exponential'):
+    elif model_name in ('smooth_triple_powerlaw_wind_bpl',
+                        'smooth_triple_powerlaw_wind_exponential'):
+        tgrid_yr = np.logspace(np.log10(0.1), np.log10(max(kwargs['t_break2'] * 2, 10)),
+                               n_points)
+        mdot_yr = _smooth_triple_powerlaw_mdot(
+            tgrid_yr, kwargs['mdot_0'], kwargs['t_break1'], kwargs['t_break2'],
+            kwargs['alpha1'], kwargs['alpha2'], kwargs['alpha3'],
+            kwargs.get('smooth_factor', 0.2),
+        )
+
+    elif model_name in ('triple_powerlaw_wind_bpl', 'triple_powerlaw_wind_exponential'):
         t_break1 = kwargs['t_break1']
         t_break2 = kwargs['t_break2']
         mdot_0   = kwargs['mdot_0']
@@ -6503,8 +6464,9 @@ def _rho_variable_wind_at_r(model_name, r_array, lc, **kwargs):
         fill_value=(mdot_cgs[0], mdot_cgs[-1]),
     )
 
-    # Wind emission time for a parcel at radius r: t_wind = r / vwind
-    t_wind = r_array / vwind_cgs              # seconds
+    # Wind emission time (before explosion) of the parcel at radius r at time
+    # t since explosion: t_wind = |r / vwind - t|, as in get_vals.f90:rho_wind.
+    t_wind = np.abs(r_array / vwind_cgs - lc.time)   # seconds
     mdot_at_r = mdot_interp(t_wind)
     rho = mdot_at_r / (4.0 * np.pi * r_array ** 2 * vwind_cgs)
     return rho
@@ -6677,16 +6639,18 @@ def _rho_static_pspline_at_r(r_array, **kwargs):
 _CSM_DENSITY_TYPE = {
     'wind_exponential':                    'wind',
     'wind_bpl':                            'wind',
-    'exponential_wind':                    'wind',
-    'bpl_wind':                            'wind',
+    # Wind-driven models: the wind is the inner outflow and the upstream medium
+    # is explosion ejecta launched at t = 0 (Fortran op(2)%delay = 0).
+    'exponential_wind':                    'exponential',
+    'bpl_wind':                            'bpl',
     'gausswind_exponential':               'variable_wind',
     'gausswind_bpl':                       'variable_wind',
     'boxwind_exponential':                 'variable_wind',
     'boxwind_bpl':                         'variable_wind',
     'triple_powerlaw_wind_bpl':            'variable_wind',
     'triple_powerlaw_wind_exponential':    'variable_wind',
-    'exponential_triple_powerlaw_wind':    'variable_wind',
-    'bpl_triple_powerlaw_wind':            'variable_wind',
+    'exponential_triple_powerlaw_wind':    'exponential',
+    'bpl_triple_powerlaw_wind':            'bpl',
     'smooth_triple_powerlaw_wind_bpl':     'variable_wind',
     'smooth_triple_powerlaw_wind_exponential': 'variable_wind',
     'exponential_exponential':             'exponential',
@@ -6713,11 +6677,55 @@ _CSM_DENSITY_TYPE = {
 }
 
 
+_HOMOLOGOUS_POWERLAW_MODELS = frozenset({
+    "homologous_powerlaw_csm_exponential",
+    "homologous_powerlaw_csm_bpl",
+})
+
+
+def _homologous_csm_interval_sec(csm_model, kwargs):
+    """
+    For CSM models whose density is a snapshot that the hydro expands
+    homologously (v = r / interval_sn, snapshot taken at the explosion), return
+    interval_sn in seconds; otherwise None.
+    """
+    density_type = _CSM_DENSITY_TYPE.get(csm_model)
+    if (density_type in ("generic", "generic_spline", "generic_pspline")
+            or csm_model in _HOMOLOGOUS_POWERLAW_MODELS):
+        return float(kwargs.get("interval_sn", 10 * YEAR_DAYS)) * DAY
+    return None
+
+
+def _get_csm_velocity_at_shock(csm_model, lc, **kwargs):
+    """
+    Return the upstream CSM velocity (cm/s) at the shock position for each time
+    step in lc, matching the CSM velocity used by the Fortran hydro.
+    """
+    r_sh = np.asarray(getattr(lc, "rshock", lc.rph), dtype=float)
+    t = np.asarray(lc.time, dtype=float)
+
+    interval_s = _homologous_csm_interval_sec(csm_model, kwargs)
+    if interval_s is not None:
+        return r_sh / (t + interval_s)
+
+    density_type = _CSM_DENSITY_TYPE.get(csm_model)
+    if density_type in ("exponential", "bpl"):
+        t_csm = t + kwargs.get("interval", 0.0) * DAY
+        return np.where(t_csm > 0.0, r_sh / np.maximum(t_csm, 1e-30), 0.0)
+    if density_type in ("wind", "variable_wind"):
+        return np.full_like(r_sh, kwargs["vwind"] * 1e5)
+    return np.zeros_like(r_sh)
+
+
 def _get_rho_csm_at_shock(csm_model, lc, **kwargs):
     """
     Return the upstream CSM mass density (g/cm^3) at the shock position for each
     time step in lc, using the analytic or reconstructed density profile that
     corresponds to csm_model.
+
+    For homologously expanding CSM snapshots (generic shell / spline / p-spline
+    and homologous power-law models) the snapshot is advected as in the hydro,
+    rho(r, t) = rho0(r / s) / s^3 with s = 1 + t / interval_sn.
 
     Parameters
     ----------
@@ -6737,6 +6745,40 @@ def _get_rho_csm_at_shock(csm_model, lc, **kwargs):
     """
     r_sh = getattr(lc, "rshock", lc.rph)
 
+    interval_s = _homologous_csm_interval_sec(csm_model, kwargs)
+    if interval_s is not None:
+        scale = 1.0 + np.asarray(lc.time, dtype=float) / interval_s
+        rho0 = _rho_csm_snapshot_at_r(csm_model, np.asarray(r_sh) / scale, lc, **kwargs)
+        return rho0 / scale**3
+    return _rho_csm_snapshot_at_r(csm_model, r_sh, lc, **kwargs)
+
+
+def _homologous_swept_csm_mass(csm_model, lc, interval_s, **kwargs):
+    """
+    Swept-up CSM mass (g) for a homologously expanding CSM snapshot: the
+    explosion-time profile integrated from the initial shock position out to
+    the shock's Lagrangian radius r_sh / s, with s = 1 + t / interval_sn.
+    """
+    r_sh = np.asarray(getattr(lc, "rshock", lc.rph), dtype=float)
+    r0 = np.maximum.accumulate(r_sh / (1.0 + np.asarray(lc.time, dtype=float) / interval_s))
+    mass = np.zeros_like(r0)
+    positive = r0 > 0.0
+    if np.count_nonzero(positive) < 2 or r0.max() <= r0[positive][0]:
+        return mass
+    grid = np.geomspace(r0[positive][0], r0.max(), 2048)
+    integrand = 4.0 * np.pi * grid**2 * np.maximum(
+        _rho_csm_snapshot_at_r(csm_model, grid, lc, **kwargs), 0.0
+    )
+    cumulative = np.concatenate(
+        ([0.0], np.cumsum(0.5 * (integrand[1:] + integrand[:-1]) * np.diff(grid)))
+    )
+    mass[positive] = np.interp(r0[positive], grid, cumulative)
+    return mass
+
+
+def _rho_csm_snapshot_at_r(csm_model, r_sh, lc, **kwargs):
+    """Dispatch to the density profile for csm_model (explosion-time snapshot
+    for homologous models)."""
     density_type = _CSM_DENSITY_TYPE.get(csm_model)
     if density_type is None:
         raise ValueError(
@@ -6779,7 +6821,8 @@ def _get_rho_csm_at_shock(csm_model, lc, **kwargs):
 
 
 def _call_csm_radio(csm_model, redshift, logepsb, logepse, p, frequency,
-                    luminosity_distance_cm, time_days=None, **kwargs):
+                    luminosity_distance_cm, time_days=None, radio_options=None,
+                    **kwargs):
     """
     Run the CSM Fortran model, compute the upstream density at the shock, and
     return synchrotron flux density in mJy on the Fortran time grid.
@@ -6797,6 +6840,9 @@ def _call_csm_radio(csm_model, redshift, logepsb, logepse, p, frequency,
     frequency : float or array
         Observer-frame frequency in Hz
     luminosity_distance_cm : float
+    radio_options : dict, optional
+        Spectral-shape keywords forwarded to ``synchrotron_flux_density``
+        (see ``redback_csm.radio.RADIO_SPECTRAL_OPTIONS``).
     **kwargs
         All physical parameters for the CSM model (passed through to _call_csm
         and also used by the density evaluators).
@@ -6816,17 +6862,21 @@ def _call_csm_radio(csm_model, redshift, logepsb, logepse, p, frequency,
     lc = _call_csm(csm_model, **kwargs)
 
     rho = _get_rho_csm_at_shock(csm_model, lc, **kwargs_density)
+    # Post-shock energy density depends on the shock speed relative to the CSM.
+    v_rel = np.maximum(
+        lc.vshell - _get_csm_velocity_at_shock(csm_model, lc, **kwargs_density), 0.0
+    )
 
     t_model_src = lc.time / DAY
     if time_days is None:
         t_eval_obs = t_model_src * (1.0 + redshift)
-        vshell = lc.vshell
+        vshell = v_rel
         rho_eval = rho
         radius = getattr(lc, "rshock", lc.rph)
     else:
         t_eval_obs = np.asarray(time_days, dtype=float)
         t_eval_src = t_eval_obs / (1.0 + redshift)
-        vshell = np.interp(t_eval_src, t_model_src, lc.vshell, left=0.0, right=0.0)
+        vshell = np.interp(t_eval_src, t_model_src, v_rel, left=0.0, right=0.0)
         rho_eval = np.interp(t_eval_src, t_model_src, rho, left=0.0, right=0.0)
         radius_model = getattr(lc, "rshock", lc.rph)
         radius = np.interp(t_eval_src, t_model_src, radius_model, left=0.0, right=0.0)
@@ -6842,6 +6892,7 @@ def _call_csm_radio(csm_model, redshift, logepsb, logepse, p, frequency,
         frequency=frequency,
         luminosity_distance_cm=luminosity_distance_cm,
         radius_cgs=radius,
+        **(radio_options or {}),
     )
     return t_eval_obs, flux_mJy
 
@@ -6888,10 +6939,18 @@ def _call_csm_xray(csm_model, redshift, logepsx, luminosity_distance_cm,
             getattr(lc, "rshock", lc.rph), rho, column_factor=float(csm_column_factor)
         )
 
+    v_rel = np.maximum(
+        lc.vshell - _get_csm_velocity_at_shock(csm_model, lc, **kwargs_density), 0.0
+    )
+    swept_mass = None
+    interval_s = _homologous_csm_interval_sec(csm_model, kwargs_density)
+    if interval_s is not None:
+        swept_mass = _homologous_swept_csm_mass(csm_model, lc, interval_s, **kwargs_density)
+
     xray = thermal_bremsstrahlung_xray(
         time_days=lc.time / DAY,
         shock_luminosity_cgs=shock_luminosity,
-        vshell_cgs=lc.vshell,
+        vshell_cgs=v_rel,
         redshift=redshift,
         logepsx=logepsx,
         luminosity_distance_cm=luminosity_distance_cm,
@@ -6905,6 +6964,7 @@ def _call_csm_xray(csm_model, redshift, logepsx, luminosity_distance_cm,
         n_h_csm=n_h_csm,
         rho_csm_cgs=rho,
         radius_cgs=getattr(lc, "rshock", lc.rph),
+        swept_csm_mass_cgs=swept_mass,
         mu=mu,
         mu_e=mu_e,
         mu_i=mu_i,

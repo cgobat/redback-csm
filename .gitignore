@@ -18,6 +18,7 @@ examples/19_runtime_summary.py
 *.png
 examples/runtime_summary.csv
 examples/photometry_phase_extinction_demo/
+examples/multifrequency_radio_fit/
 .idea/
 *.tmp_runtime
 *.tex
