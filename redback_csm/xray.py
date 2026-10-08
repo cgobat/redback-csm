@@ -21,13 +21,13 @@ References:
 """
 
 import numpy as _np
+from scipy.integrate import trapezoid as _TRAPEZOID
 
 _C = 2.99792458e10
 _MP = 1.67262192369e-24
 _KEV = 1.602176634e-9
 _H = 6.62607015e-27
 _KEV_TO_HZ = _KEV / _H
-_TRAPEZOID = getattr(_np, "trapezoid", _np.trapz)
 _FF_BOL_COEFF = 1.426e-27
 
 

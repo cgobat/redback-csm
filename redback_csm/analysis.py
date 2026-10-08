@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 import numpy as np
+from scipy.integrate import trapezoid as _TRAPEZOID
 
 from redback_csm.core import (
     create_static_spline_csm_density,
@@ -17,8 +18,6 @@ from redback_csm.core import (
     pspline_log_rho_nodes,
     solar_mass,
 )
-
-_TRAPEZOID = getattr(np, "trapezoid", np.trapz)
 
 
 def _as_sorted_density_grid(radius_cgs, density_cgs):

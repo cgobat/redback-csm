@@ -23,6 +23,7 @@ import os as _os
 import collections as _collections
 
 import numpy as _np
+from scipy.integrate import trapezoid as _TRAPEZOID
 from scipy.interpolate import interp1d as _interp1d
 import astropy.units as _uu
 from astropy.cosmology import Planck18 as _cosmo
@@ -52,7 +53,6 @@ from redback_csm.core import (
 DAY = 86400.0    # seconds per day
 _AU = 1.496e13   # cm per AU
 _SOLAR_MASS = 1.989e33
-_TRAPEZOID = getattr(_np, "trapezoid", _np.trapz)
 
 BASE_MODEL_NAMES = (
     "wind_exponential",
